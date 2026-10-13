@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinematografía — El buscador de series</title>
+    <meta name="description" content="Explora series: sinopsis, géneros, calificaciones y más. Datos en vivo vía TVMaze API.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['"Bebas Neue"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        body: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                    },
+                    keyframes: {
+                        'fade-up': {
+                            '0%': { opacity: '0', transform: 'translateY(28px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0) translateX(0)' },
+                            '50%': { transform: 'translateY(-22px) translateX(12px)' },
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(1)' },
+                            '40%': { transform: 'scale(1.45)' },
+                            '100%': { transform: 'scale(1)' },
+                        },
+                        'toast-in': {
+                            '0%': { opacity: '0', transform: 'translate(-50%, 26px) scale(.9)' },
+                            '100%': { opacity: '1', transform: 'translate(-50%, 0) scale(1)' },
+                        },
+                        'slide-in': {
+                            '0%': { opacity: '0', transform: 'translateX(30px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        },
+                    },
+                    animation: {
+                        'fade-up': 'fade-up .7s cubic-bezier(.22,1,.36,1) both',
+                        float: 'float 11s ease-in-out infinite',
+                        pop: 'pop .5s cubic-bezier(.22,1,.36,1)',
+                        'toast-in': 'toast-in .5s cubic-bezier(.22,1,.36,1) both',
+                        'slide-in': 'slide-in .5s cubic-bezier(.22,1,.36,1) both',
+                    },
+                },
+            },
+        };
+    </script>
+
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: #06060a;
+        }
+
+        /* Capa de grano de película + viñeta, sobre toda la interfaz */
+        .grain::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            pointer-events: none;
+            opacity: .045;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0b0b12;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2a2a3a;
+            border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3a3a4f;
+        }
+    </style>
+</head>
+
+<body
+    class="grain font-body text-slate-200 min-h-screen antialiased selection:bg-amber-400 selection:text-black overflow-x-hidden">
+
+    <!-- Fondo: orbes de luz difusa + viñeta radial -->
+    <div class="fixed inset-0 -z-10 overflow-hidden">
+        <div class="absolute -top-40 -left-40 w-[36rem] h-[36rem] bg-indigo-700/20 rounded-full blur-[130px] animate-float"></div>
+        <div class="absolute top-1/3 -right-40 w-[32rem] h-[32rem] bg-amber-500/10 rounded-full blur-[130px] animate-float"
+            style="animation-delay:-4s"></div>
+        <div class="absolute bottom-0 left-1/3 w-[30rem] h-[30rem] bg-fuchsia-700/10 rounded-full blur-[130px] animate-float"
+            style="animation-delay:-8s"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,transparent_0%,#06060a_72%)]"></div>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="sticky top-0 z-40 backdrop-blur-md bg-black/30 border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <a href="#" class="flex items-center gap-2.5 group">
+                <span class="text-2xl transition-transform duration-300 group-hover:rotate-12">🎬</span>
+                <span class="font-display text-2xl sm:text-3xl tracking-[0.2em] text-white">CINEMATOGRAFÍA</span>
+            </a>
+            <div class="flex items-center gap-3">
+                <span
+                    class="hidden lg:inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-amber-400/80">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    En vivo vía TVMaze
+                </span>
+                <button id="btnFavoritos" type="button"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 hover:border-amber-400/40 transition text-sm font-medium text-white">
+                    <span class="text-amber-400">★</span>
+                    <span class="hidden sm:inline">Mi lista</span>
+                    <span id="favoritosCount"
+                        class="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-amber-400 text-black text-xs font-bold">0</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <header class="relative max-w-7xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-10 text-center">
+        <p class="text-[11px] sm:text-xs uppercase tracking-[0.45em] text-amber-400 mb-5 animate-fade-up">
+            La cartelera del streaming
+        </p>
+        <h1 class="font-display text-5xl sm:text-7xl lg:text-8xl leading-[0.9] text-white animate-fade-up"
+            style="animation-delay:.08s">
+            Encuentra tu próxima
+            <span class="bg-gradient-to-r from-amber-200 via-amber-400 to-orange-500 bg-clip-text text-transparent">
+                obsesión
+            </span>
+        </h1>
+        <p class="mt-6 max-w-2xl mx-auto text-slate-400 text-sm sm:text-base animate-fade-up" style="animation-delay:.16s">
+            Miles de series en un solo buscador. Sinopsis, géneros, calificaciones y dónde verlas, al instante.
+        </p>
+
+        <!-- Buscador (glassmorphism) -->
+        <form id="searchForm"
+            class="mt-10 max-w-2xl mx-auto flex flex-col sm:flex-row gap-3 p-2 rounded-2xl sm:rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/50 animate-fade-up"
+            style="animation-delay:.24s">
+            <input id="searchInput" type="text" autocomplete="off"
+                placeholder="Escribe un título: Breaking Bad, Dark, The Bear..."
+                class="flex-1 bg-transparent px-5 py-3.5 text-white placeholder-slate-500 focus:outline-none">
+            <button type="submit"
+                class="px-8 py-3.5 rounded-xl sm:rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-black font-semibold tracking-wide transition-all duration-300 hover:from-amber-300 hover:to-orange-400 hover:shadow-2xl hover:shadow-amber-400/30 active:scale-95">
+                Buscar
+            </button>
+        </form>
+    </header>
+
+    <!-- Estado de Carga -->
+    <div id="loading" class="hidden flex flex-col items-center gap-6 py-20">
+        <div class="relative w-16 h-16">
+            <div class="absolute inset-0 rounded-full border-2 border-white/10"></div>
+            <div class="absolute inset-0 rounded-full border-2 border-transparent border-t-amber-400 animate-spin"></div>
+            <div class="absolute inset-3 rounded-full border-2 border-transparent border-b-indigo-400 animate-spin"
+                style="animation-direction:reverse; animation-duration:1.4s"></div>
+        </div>
+        <p class="font-display text-2xl tracking-[0.3em] text-slate-400 animate-pulse">Proyectando...</p>
+    </div>
+
+    <!-- Estado de Error -->
+    <div id="errorMessage"
+        class="hidden max-w-2xl mx-auto my-10 flex items-start gap-4 rounded-2xl border border-red-500/30 bg-red-950/40 backdrop-blur-xl p-5 text-red-200 animate-fade-up">
+        <span class="text-2xl leading-none">⚠️</span>
+        <div>
+            <p class="font-semibold text-red-100">Algo salió mal</p>
+            <p id="errorText" class="text-sm text-red-300/80 mt-0.5">No se encontraron resultados.</p>
+        </div>
+    </div>
+
+    <!-- Estado de Éxito: Destacado -->
+    <section id="featured" class="hidden max-w-7xl mx-auto px-4 sm:px-6 mt-12 scroll-mt-24">
+        <p class="font-display text-3xl sm:text-4xl tracking-[0.15em] text-white mb-5 flex items-center gap-3">
+            <span class="w-8 h-[3px] bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"></span>
+            En primer plano
+        </p>
+        <article id="featuredCard"
+            class="group relative isolate grid md:grid-cols-[340px_1fr] gap-6 lg:gap-8 rounded-3xl overflow-hidden border border-white/10 p-4 sm:p-6 animate-fade-up">
+        </article>
+    </section>
+
+    <!-- Estado de Éxito: Grilla de pósters -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pb-24">
+        <div id="resultsHeader" class="hidden flex items-end justify-between mb-6 mt-14">
+            <p class="font-display text-3xl sm:text-4xl tracking-[0.15em] text-white flex items-center gap-3">
+                <span class="w-8 h-[3px] bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"></span>
+                Cartelera
+            </p>
+            <span id="resultsCount" class="text-sm text-slate-500"></span>
+        </div>
+        <div id="resultsGrid" class="hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+        </div>
+    </section>
+
+    <!-- Pie -->
+    <footer class="border-t border-white/5 py-8 text-center text-xs text-slate-600">
+        Datos en vivo desde TVMaze · Construido con Fetch API, async/await y Tailwind CSS
+    </footer>
+
+    <!-- Fondo oscuro del panel Mi lista -->
+    <div id="drawerOverlay" class="hidden fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm"></div>
+
+    <!-- Panel lateral "Mi lista" (favoritos guardados en localStorage) -->
+    <aside id="drawer"
+        class="fixed top-0 right-0 z-[70] h-full w-full sm:w-[420px] max-w-[92vw] translate-x-full transition-transform duration-500 ease-out bg-[#0b0b12]/95 backdrop-blur-xl border-l border-white/10 flex flex-col">
+        <header class="flex items-center justify-between p-5 border-b border-white/10">
+            <h2 class="font-display text-2xl tracking-[0.15em] text-white flex items-center gap-2">
+                <span class="text-amber-400">★</span> Mi lista
+            </h2>
+            <div class="flex items-center gap-2">
+                <button id="btnVaciar" type="button"
+                    class="text-xs text-slate-400 hover:text-red-400 transition px-2 py-1">Vaciar</button>
+                <button id="btnCerrarDrawer" type="button" aria-label="Cerrar"
+                    class="w-9 h-9 rounded-full border border-white/10 text-slate-300 hover:bg-white/10 transition">✕</button>
+            </div>
+        </header>
+
+        <div id="favoritosList" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"></div>
+
+        <div id="favoritosVacio" class="hidden flex-1 flex-col items-center justify-center gap-4 text-center px-8">
+            <div class="relative flex items-center justify-center w-24 h-24">
+                <span class="absolute inset-0 rounded-full bg-amber-400/10 animate-ping"></span>
+                <span class="absolute inset-2 rounded-full border border-amber-400/20"></span>
+                <span class="text-5xl animate-float">🎞️</span>
+            </div>
+            <p class="text-slate-400 text-sm leading-relaxed">
+                Aún no guardaste ninguna serie.<br>
+                Usa el botón <span class="text-amber-400 font-semibold">Guardar</span> para añadirlas aquí.
+            </p>
+        </div>
+
+        <!-- Indicador de memoria usada por LocalStorage -->
+        <footer class="border-t border-white/10 p-4">
+            <div class="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-slate-500 mb-2">
+                <span>Memoria local</span>
+                <span id="storageUso" class="text-amber-400 font-semibold tracking-normal normal-case">0 B</span>
+            </div>
+            <div class="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                <div id="storageBar"
+                    class="h-full w-0 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-700 ease-out">
+                </div>
+            </div>
+            <p id="storageDetalle" class="mt-2 text-[11px] text-slate-600">0 elementos · 5.00 MB disponibles</p>
+        </footer>
+    </aside>
+
+    <script src="./script.js"></script>
+</body>
+
+</html>
